@@ -1,0 +1,118 @@
+﻿@model ChatApplication.Models.Message 
+@{ 
+} 
+
+<h1>Send message</h1> 
+<div class="mb-5"> 
+    <div class="col"> 
+        <label>Reciever</label> 
+        <input type="text" onclick="JA()" required maxlength="50" class="form-control" id="messageReciever"> 
+    </div> 
+    <div class="col"> 
+        <label for="title">Title</label> 
+        <input type="text" required maxlength="50" class="form-control" id="messageTitle"> 
+    </div> 
+    <div class="col"> 
+        <label for="message">Message</label> 
+        <textarea class="form-control" rows="5" id="messageField"></textarea> 
+    </div> 
+</div>
+
+<button type="submit" class="btn btn-primary px-4 btn-lg" id="sendBtn">Post</button> 
+
+<div id="header"></div> 
+<br /> 
+<div id="chatroom"></div> 
+
+<script src="~/js/microsoft/signalr/dist/browser/signalr.min.js"></script> 
+
+<link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<script src="~/lib/jquery/dist/jquery.js"></script> 
+<script src="~/lib/jquery-ui/dist/jquery-ui.js"></script> 
+ 
+<script>
+    // autocomplete for recievers name
+    function JA(){
+        $.ajax({
+            type: 'POST',
+            url: "/Enter/ReturnUsersList",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: (data) => {
+                console.log(data);
+                var availableTags = data;
+                $( "#messageReciever" ).autocomplete({
+                    source: availableTags
+                });
+            }
+        });
+    }
+</script>
+
+<script> 
+
+    let token; 
+    const hubConnection = new signalR.HubConnectionBuilder() 
+        .withUrl("https://localhost:7102/chat") 
+        .build(); 
+ 
+    hubConnection 
+        .start() 
+        .then(() => console.log('Connection started!')) 
+        .catch(
+            err => console.log('Error while establishing connection :(')); 
+ 
+    hubConnection.on("Receive", function (sendObject1) { 
+        let sendObject = JSON.parse(sendObject1);
+        if (sendObject.IsSuccess == false)
+            window.alert("There is no such reciever");
+        else{
+            console.log('1' + sendObject.MesBody); 
+            console.log('2' + sendObject.SenderName); 
+            // создаем элемент <b> для имени пользователя 
+            let userNameElem = document.createElement("b"); 
+            userNameElem.appendChild(document.createTextNode(sendObject.SenderName + ": ")); 
+            
+            // создает элемент <p> для сообщения пользователя
+            let elem = document.createElement("div");
+            elem.setAttribute('id', 'titleClick');
+            elem.appendChild(userNameElem);
+            elem.appendChild(document.createTextNode(sendObject.MesTitle));
+
+            var firstElem = document.getElementById("chatroom").firstChild; 
+            document.getElementById("chatroom").insertBefore(elem, firstElem); 
+
+            let elem1 = document.createElement('div');
+            elem1.setAttribute('id', 'mesBody');
+            elem1.setAttribute('class', 'zzz');
+            elem1.setAttribute('style', 'display:none');
+            elem1.appendChild(document.createTextNode(sendObject.MesBody));
+
+            firstElem = document.getElementById("chatroom").firstChild; 
+            document.getElementById("chatroom").insertBefore(elem1, firstElem.nextSibling); 
+
+            document.getElementById("titleClick").addEventListener("click", function(e){
+                if (elem1.style.display === "none") {
+                    elem1.style.display = "block";
+                    } else {
+                    elem1.style.display = "none";
+                }
+            });
+        }
+    }); 
+ 
+    // отправка сообщения на сервер 
+    document.getElementById("sendBtn").addEventListener("click", function (e) { 
+        let sendObj = {  
+            MesBody: document.getElementById("messageField").value, 
+            MesTitle: document.getElementById("messageTitle").value, 
+            Reciever: { 
+                Name: document.getElementById("messageReciever").value 
+            } 
+        }; 
+
+        hubConnection.invoke("Send", sendObj) 
+            .then(() => console.log('Send started!')) 
+            .catch(err => console.log('Error while establishing connection :('));
+    }); 
+</script>
